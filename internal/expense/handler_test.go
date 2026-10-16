@@ -2,8 +2,11 @@ package expense
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -28,8 +31,16 @@ func newTestSystem(t *testing.T) *TestSystem {
 	}
 }
 
-func (ts *TestSystem) request(method, path string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(method, path, nil)
+func (ts *TestSystem) request(
+	method, path string,
+	body ...io.Reader,
+) *httptest.ResponseRecorder {
+	var r io.Reader
+	if len(body) > 0 {
+		r = body[0]
+	}
+
+	req := httptest.NewRequest(method, path, r)
 	rec := httptest.NewRecorder()
 	ts.Mux.ServeHTTP(rec, req)
 	return rec
@@ -58,6 +69,8 @@ func TestHandlerGetNotFound(t *testing.T) {
 	}
 }
 
+// плохой тест, лучше отдельно протестить FormatCents (в service_test.go)
+// и отдельно добавление и чтение из базы
 func TestHandlerFormatCents(t *testing.T) {
 	ts := newTestSystem(t)
 	ctx := t.Context()
@@ -91,3 +104,49 @@ func TestHandlerFormatCents(t *testing.T) {
 		}
 	}
 }
+
+func TestHandlerCreate(t *testing.T) {
+	ts := newTestSystem(t)
+
+	rec := ts.request(
+		http.MethodPost,
+		"/expenses",
+		strings.NewReader(`{"amount":"50.00","category":"food","description":"lunch"}`),
+	)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusCreated)
+	}
+
+	var created expenseResponse
+	if err := json.NewDecoder(rec.Body).Decode(&created); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if created.Amount != "50.00" {
+		t.Fatalf("amount = %q, want %q", created.Amount, "50.00")
+	}
+	if created.Category != "food" {
+		t.Fatalf("category = %q, want %q", created.Category, "food")
+	}
+	if created.Description != "lunch" {
+		t.Fatalf("description = %q, want %q", created.Description, "lunch")
+	}
+
+	got := ts.request(http.MethodGet, "/expenses/"+strconv.FormatInt(created.ID, 10))
+	if got.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got.Code, http.StatusOK)
+	}
+
+	var stored expenseResponse
+	if err := json.NewDecoder(got.Body).Decode(&stored); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if stored != created {
+		t.Fatalf("stored = %+v, want %+v", stored, created)
+	}
+}
+
+// TODO: TestHandlerCreateTrimsCategory — POST с категорией " Food " даёт 201 и category "food".
+// TODO: TestHandlerCreateEmptyDescription — пустое описание не попадает в JSON ответа.
+// TODO: TestHandlerCreateInvalidAmount — сумма "0.00" даёт 400.
+// TODO: TestHandlerCreateInvalidCategory — категория из пробелов даёт 400.
+// TODO: TestHandlerDelete — DELETE существующего id даёт 204, следующий GET этого id даёт 404.

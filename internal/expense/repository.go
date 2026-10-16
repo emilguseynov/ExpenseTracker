@@ -94,3 +94,59 @@ func (r *Repository) GetByID(ctx context.Context, id int64) (Expense, error) {
 
 	return expense, nil
 }
+
+func (r *Repository) Create(
+	ctx context.Context,
+	amountCents int64,
+	category string,
+	description *string,
+) (Expense, error) {
+	insertQuery := `
+		INSERT INTO expenses (amount_cents, category, description)
+		VALUES ($1, $2, $3)
+		RETURNING id, amount_cents, category, description, created_at
+	`
+
+	row := r.Pool.QueryRow(ctx, insertQuery, amountCents, category, description)
+
+	expense := Expense{}
+	var desc *string
+
+	err := row.Scan(
+		&expense.ID,
+		&expense.AmountCents,
+		&expense.Category,
+		&desc,
+		&expense.CreatedAt,
+	)
+	if err != nil {
+		return Expense{}, err
+	}
+
+	if desc != nil {
+		expense.Description = *desc
+	}
+
+	return expense, nil
+}
+
+func (r *Repository) Delete(
+	ctx context.Context,
+	id int64,
+) error {
+	deleteQuery := `
+		DELETE FROM expenses
+		WHERE id = $1;
+	`
+
+	tag, err := r.Pool.Exec(ctx, deleteQuery, id)
+	if err != nil {
+		return err
+	}
+
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
