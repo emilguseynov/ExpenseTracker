@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"expense-tracker/internal/database"
+	"expense-tracker/internal/expense"
 )
 
 func main() {
@@ -19,4 +21,21 @@ func main() {
 	defer pool.Close()
 
 	slog.Info("database is ready")
+
+	repo := expense.NewRepository(pool)    // data
+	service := expense.NewService(repo)    // domain
+	handler := expense.NewHandler(service) // presentation
+
+	mux := http.NewServeMux()
+	handler.Register(mux)
+
+	addr := os.Getenv("HTTP_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		slog.Error("server stopped", "err", err)
+		os.Exit(1)
+	}
 }

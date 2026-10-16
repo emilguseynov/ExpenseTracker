@@ -591,10 +591,11 @@
                 </ul>
               </div>
               <div class="box good">
-                <h4>Две проверки</h4>
+                <h4>Проверки</h4>
                 <ul>
                   <li><code>curl</code> против <code>expense_tracker</code>, сверка одного объекта с <code>psql</code>.</li>
                   <li><code>httptest</code> против тестовой базы через тот же путь, что у сервера: хендлер, сервис, репозиторий. Минимум два случая — пустой список и 404.</li>
+                  <li>В <code>handler_test.go</code> отдельный тест на <code>FormatCents</code>. Строка вставляется в тестовую базу, затем читается через <code>GET</code>. В JSON поле <code>amount</code> должно совпасть с тем, что возвращает <code>FormatCents</code> для этих центов. Минимум две суммы: <code>5000</code> даёт <code>"50.00"</code>, <code>10000</code> даёт <code>"100.00"</code>. Прямой вызов <code>FormatCents</code> без базы этот пункт не закрывает: тест идёт через хендлер.</li>
                 </ul>
               </div>
             </div>

@@ -14,6 +14,10 @@ type Repository struct {
 
 var ErrNotFound = errors.New("expense not found")
 
+func NewRepository(pool *pgxpool.Pool) *Repository {
+	return &Repository{Pool: pool}
+}
+
 func (r *Repository) List(ctx context.Context) ([]Expense, error) {
 	const query = `
 		SELECT id, amount_cents, category, description, created_at
