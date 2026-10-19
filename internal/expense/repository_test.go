@@ -24,7 +24,7 @@ func TestListAndGetByID(t *testing.T) {
 		t.Fatalf("failed to insert: %v", err)
 	}
 
-	got, err := repo.List(ctx)
+	got, err := repo.List(ctx, Filter{})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}

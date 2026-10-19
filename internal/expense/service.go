@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 )
 
 type Service struct {
@@ -15,8 +16,45 @@ func NewService(repo *Repository) *Service {
 	return &service
 }
 
-func (s *Service) List(ctx context.Context) ([]Expense, error) {
-	return s.repo.List(ctx)
+var ErrInvalidDateRange = errors.New("invalid date range")
+
+func (s *Service) List(
+	ctx context.Context,
+	category string,
+	from string,
+	to string,
+) ([]Expense, error) {
+	filter := Filter{}
+
+	if strings.TrimSpace(category) != "" {
+		normalized, err := normalizeCategory(category)
+		if err != nil {
+			return nil, err
+		}
+		filter.Category = normalized
+	}
+
+	if from != "" {
+		fromDate, err := time.Parse("2006-01-02", from)
+		if err != nil {
+			return nil, ErrInvalidDateRange
+		}
+		filter.From = fromDate
+	}
+
+	if to != "" {
+		toDate, err := time.Parse("2006-01-02", to)
+		if err != nil {
+			return nil, ErrInvalidDateRange
+		}
+		filter.End = toDate.AddDate(0, 0, 1)
+	}
+
+	if !filter.From.IsZero() && !filter.End.IsZero() && !filter.From.Before(filter.End) {
+		return nil, ErrInvalidDateRange
+	}
+
+	return s.repo.List(ctx, filter)
 }
 
 func (s *Service) GetByID(ctx context.Context, id int64) (Expense, error) {

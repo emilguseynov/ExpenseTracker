@@ -8,7 +8,18 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
+
+const standardInsertQuery = `
+	INSERT INTO expenses (amount_cents, category, description, created_at)
+	VALUES
+	(5000,  'food',        NULL, '2026-09-03 12:00:00+03'),
+	(2000,  'transport',   NULL, '2026-09-12 12:00:00+03'),
+	(10000, 'electronics', NULL, '2026-09-18 12:00:00+03'),
+	(3000,  'food',        NULL, '2026-09-27 15:00:00+03'),
+	(2000,  'food',        NULL, '2026-10-18 12:00:00+03');
+`
 
 type TestSystem struct {
 	Repo    *Repository
@@ -223,10 +234,12 @@ func TestHandlerDelete(t *testing.T) {
     (5,  'food',        NULL, '2026-09-03 12:00:00+03');
 	`
 
-	ts.Repo.Pool.Exec(
+	if _, err := ts.Repo.Pool.Exec(
 		t.Context(),
 		insertQuery,
-	)
+	); err != nil {
+		t.Fatalf("failed to insert: %v", err)
+	}
 
 	rec := ts.request(
 		http.MethodDelete,
@@ -244,5 +257,59 @@ func TestHandlerDelete(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("response code = %v, want 404 NotFound", rec.Code)
+	}
+}
+
+func TestListWithCategory(t *testing.T) {
+	ts := newTestSystem(t)
+
+	if _, err := ts.Repo.Pool.Exec(t.Context(), standardInsertQuery); err != nil {
+		t.Fatalf("failed to insert: %v", err)
+	}
+
+	rec := ts.request(
+		http.MethodGet,
+		"/expenses?category=food",
+	)
+
+	response := []expenseResponse{}
+
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed parsing json: %v", err)
+	}
+
+	for _, exp := range response {
+		if exp.Category != "food" {
+			t.Fatalf("wrong category in response: %v, want food", exp.Category)
+		}
+	}
+}
+
+func TestListWithDateFilter(t *testing.T) {
+	ts := newTestSystem(t)
+
+	if _, err := ts.Repo.Pool.Exec(t.Context(), standardInsertQuery); err != nil {
+		t.Fatalf("failed to insert: %v", err)
+	}
+
+	rec := ts.request(
+		http.MethodGet,
+		"/expenses?from=2026-09-01&to=2026-09-30",
+	)
+
+	response := []expenseResponse{}
+
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed parsing json: %v", err)
+	}
+
+	for _, exp := range response {
+		createdAt, err := time.Parse(time.RFC3339, exp.CreatedAt)
+		if err != nil {
+			t.Fatalf("created_at: %v", err)
+		}
+		if createdAt.Month() != time.September {
+			t.Fatalf("created_at month = %s, want September", createdAt.Month())
+		}
 	}
 }

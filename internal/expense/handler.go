@@ -50,7 +50,17 @@ func (h *Handler) Register(mux *http.ServeMux) {
 // GET
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
-	expenses, err := h.service.List(r.Context())
+	query := r.URL.Query()
+	category := query.Get("category")
+	from := query.Get("from")
+	to := query.Get("to")
+
+	expenses, err := h.service.List(
+		r.Context(),
+		category,
+		from,
+		to,
+	)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -99,10 +109,11 @@ func (h *Handler) post(w http.ResponseWriter, r *http.Request) {
 		req.Category,
 		req.Description,
 	)
-	if errors.Is(err, ErrInvalidAmount) {
+	if errors.Is(err, ErrInvalidAmount) || errors.Is(err, ErrInvalidCategory) {
 		http.Error(w, "invalid amount", http.StatusBadRequest)
 		return
 	}
+
 	if err != nil {
 		http.Error(w, "failed creating an expense: %v", http.StatusInternalServerError)
 		return
@@ -125,6 +136,8 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed deleting an expense", http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Helper function

@@ -3,6 +3,8 @@ package expense
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,14 +20,44 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{Pool: pool}
 }
 
-func (r *Repository) List(ctx context.Context) ([]Expense, error) {
-	const query = `
+func (r *Repository) List(ctx context.Context, filter Filter) ([]Expense, error) {
+	conditions := make([]string, 0, 3)
+	args := make([]any, 0, 3)
+
+	if filter.Category != "" {
+		args = append(args, filter.Category)
+		conditions = append(
+			conditions,
+			fmt.Sprintf("category = $%d", len(args)),
+		)
+	}
+
+	if !filter.From.IsZero() {
+		args = append(args, filter.From)
+		conditions = append(
+			conditions,
+			fmt.Sprintf("created_at >= $%d", len(args)),
+		)
+	}
+
+	if !filter.End.IsZero() {
+		args = append(args, filter.End)
+		conditions = append(
+			conditions,
+			fmt.Sprintf("created_at < $%d", len(args)),
+		)
+	}
+
+	query := `
 		SELECT id, amount_cents, category, description, created_at
 		FROM expenses
-		ORDER BY id;
-
 	`
-	rows, err := r.Pool.Query(ctx, query)
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+	query += " ORDER BY id"
+
+	rows, err := r.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

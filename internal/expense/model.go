@@ -16,6 +16,12 @@ type Expense struct {
 	CreatedAt   time.Time
 }
 
+type Filter struct {
+	Category string
+	From     time.Time
+	End      time.Time
+}
+
 func FormatCents(cents int64) string {
 	negative := cents < 0
 	dollars := cents / 100
