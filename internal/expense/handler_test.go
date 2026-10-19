@@ -69,8 +69,6 @@ func TestHandlerGetNotFound(t *testing.T) {
 	}
 }
 
-// плохой тест, лучше отдельно протестить FormatCents (в service_test.go)
-// и отдельно добавление и чтение из базы
 func TestHandlerFormatCents(t *testing.T) {
 	ts := newTestSystem(t)
 	ctx := t.Context()
@@ -145,7 +143,6 @@ func TestHandlerCreate(t *testing.T) {
 	}
 }
 
-// TODO: TestHandlerCreateTrimsCategory — POST с категорией " Food " даёт 201 и category "food".
 func TestHandlerCreateTrimsCategory(t *testing.T) {
 	ts := newTestSystem(t)
 
@@ -167,7 +164,6 @@ func TestHandlerCreateTrimsCategory(t *testing.T) {
 	}
 }
 
-// TODO: TestHandlerCreateEmptyDescription — пустое описание не попадает в JSON ответа.
 func TestHandlerCreateEmptyDescription(t *testing.T) {
 	ts := newTestSystem(t)
 
@@ -190,7 +186,6 @@ func TestHandlerCreateEmptyDescription(t *testing.T) {
 	}
 }
 
-// TODO: TestHandlerCreateInvalidAmount — сумма "0.00" даёт 400.
 func TestHandlerCreateInvalidAmount(t *testing.T) {
 	ts := newTestSystem(t)
 
@@ -205,7 +200,6 @@ func TestHandlerCreateInvalidAmount(t *testing.T) {
 	}
 }
 
-// TODO: TestHandlerCreateInvalidCategory — категория из пробелов даёт 400.
 func TestHandlerCreateInvalidCategory(t *testing.T) {
 	ts := newTestSystem(t)
 
@@ -220,7 +214,6 @@ func TestHandlerCreateInvalidCategory(t *testing.T) {
 	}
 }
 
-// TODO: TestHandlerDelete — DELETE существующего id даёт 204, следующий GET этого id даёт 404.
 func TestHandlerDelete(t *testing.T) {
 	ts := newTestSystem(t)
 
