@@ -12,7 +12,7 @@ type expenseResponse struct {
 	ID          int64  `json:"id"`
 	Amount      string `json:"amount"`
 	Category    string `json:"category"`
-	Description string `json:"description"`
+	Description string `json:"description,omitempty"`
 	CreatedAt   string `json:"created_at"`
 }
 
@@ -44,7 +44,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /expenses", h.list)
 	mux.HandleFunc("GET /expenses/{id}", h.get)
 	mux.HandleFunc("POST /expenses", h.post)
-	mux.HandleFunc("DELETE /expenses", h.delete)
+	mux.HandleFunc("DELETE /expenses/{id}", h.delete)
 }
 
 // GET

@@ -36,12 +36,16 @@ func (s *Service) Create(
 	if err != nil {
 		return Expense{}, err
 	}
+	var desc string
+	if description != "" {
+		desc = description
+	}
 
 	return s.repo.Create(
 		ctx,
 		amountCents,
 		category,
-		&description,
+		&desc,
 	)
 }
 

@@ -146,7 +146,110 @@ func TestHandlerCreate(t *testing.T) {
 }
 
 // TODO: TestHandlerCreateTrimsCategory — POST с категорией " Food " даёт 201 и category "food".
+func TestHandlerCreateTrimsCategory(t *testing.T) {
+	ts := newTestSystem(t)
+
+	rec := ts.request(
+		http.MethodPost,
+		"/expenses",
+		strings.NewReader(`{"amount":"50.00","category":" Food ","description":"lunch"}`),
+	)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusCreated)
+	}
+
+	var created expenseResponse
+	if err := json.NewDecoder(rec.Body).Decode(&created); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if created.Category != "food" {
+		t.Fatalf("category = %q, want %q", created.Category, "food")
+	}
+}
+
 // TODO: TestHandlerCreateEmptyDescription — пустое описание не попадает в JSON ответа.
+func TestHandlerCreateEmptyDescription(t *testing.T) {
+	ts := newTestSystem(t)
+
+	rec := ts.request(
+		http.MethodPost,
+		"/expenses",
+		strings.NewReader(`{"amount":"50.00","category":"food","description":""}`),
+	)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusCreated)
+	}
+
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if value, ok := body["description"]; ok {
+		t.Fatalf("description = %v, want field absent", value)
+	}
+}
+
 // TODO: TestHandlerCreateInvalidAmount — сумма "0.00" даёт 400.
+func TestHandlerCreateInvalidAmount(t *testing.T) {
+	ts := newTestSystem(t)
+
+	rec := ts.request(
+		http.MethodPost,
+		"/expenses",
+		strings.NewReader(`{"amount":"0.00","category":"food","description":"lunch"}`),
+	)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("response code = %v, want 400 BadRequest", rec.Code)
+	}
+}
+
 // TODO: TestHandlerCreateInvalidCategory — категория из пробелов даёт 400.
+func TestHandlerCreateInvalidCategory(t *testing.T) {
+	ts := newTestSystem(t)
+
+	rec := ts.request(
+		http.MethodPost,
+		"/expenses",
+		strings.NewReader(`{"amount":"50.00","category":"      ","description":"lunch"}`),
+	)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("response code = %v, want 400 BadRequest", rec.Code)
+	}
+}
+
 // TODO: TestHandlerDelete — DELETE существующего id даёт 204, следующий GET этого id даёт 404.
+func TestHandlerDelete(t *testing.T) {
+	ts := newTestSystem(t)
+
+	const insertQuery = `
+	INSERT INTO expenses (amount_cents, category, description, created_at)
+	VALUES
+    (5,  'food',        NULL, '2026-09-03 12:00:00+03');
+	`
+
+	ts.Repo.Pool.Exec(
+		t.Context(),
+		insertQuery,
+	)
+
+	rec := ts.request(
+		http.MethodDelete,
+		"/expenses/1",
+	)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("response code = %v, want 204 StatusNoContent", rec.Code)
+	}
+
+	rec = ts.request(
+		http.MethodGet,
+		"/expenses/1",
+	)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("response code = %v, want 404 NotFound", rec.Code)
+	}
+}
