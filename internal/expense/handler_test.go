@@ -313,3 +313,53 @@ func TestListWithDateFilter(t *testing.T) {
 		}
 	}
 }
+
+func TestListWithCategoryAndDateFilter(t *testing.T) {
+	ts := newTestSystem(t)
+
+	if _, err := ts.Repo.Pool.Exec(t.Context(), standardInsertQuery); err != nil {
+		t.Fatalf("failed to insert: %v", err)
+	}
+
+	rec := ts.request(
+		http.MethodGet,
+		"/expenses?category=food&from=2026-09-01&to=2026-09-30",
+	)
+
+	response := []expenseResponse{}
+
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed parsing json: %v", err)
+	}
+
+	for _, exp := range response {
+		if exp.Category != "food" {
+			t.Fatalf("wrong category in response: %v, want food", exp.Category)
+		}
+
+		createdAt, err := time.Parse(time.RFC3339, exp.CreatedAt)
+		if err != nil {
+			t.Fatalf("created_at: %v", err)
+		}
+		if createdAt.Month() != time.September {
+			t.Fatalf("created_at month = %s, want September", createdAt.Month())
+		}
+	}
+}
+
+func TestListWithInvalidDateFilter(t *testing.T) {
+	ts := newTestSystem(t)
+
+	if _, err := ts.Repo.Pool.Exec(t.Context(), standardInsertQuery); err != nil {
+		t.Fatalf("failed to insert: %v", err)
+	}
+
+	rec := ts.request(
+		http.MethodGet,
+		"/expenses?from=2026-09-03&to=2026-09-02",
+	)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("wrong status code: %v, want 400 BadRequest", rec.Code)
+	}
+}

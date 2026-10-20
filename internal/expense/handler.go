@@ -61,6 +61,9 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		from,
 		to,
 	)
+	if errors.Is(err, ErrInvalidDateRange) {
+		http.Error(w, "invalid period", http.StatusBadRequest)
+	}
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
