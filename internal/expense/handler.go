@@ -152,7 +152,9 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) post(w http.ResponseWriter, r *http.Request) {
 	var req createExpenseRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}

@@ -484,6 +484,34 @@ func TestStatsInvalidDateFilter(t *testing.T) {
 	}
 }
 
+func TestPostNotJSON(t *testing.T) {
+	ts := newTestSystem(t)
+
+	rec := ts.request(
+		http.MethodPost,
+		"/expenses",
+		strings.NewReader(`not-json`),
+	)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("wrong response code: %v, want 400", rec.Code)
+	}
+}
+
+func TestIrregularFieldInJSON(t *testing.T) {
+	ts := newTestSystem(t)
+
+	rec := ts.request(
+		http.MethodPost,
+		"/expenses",
+		strings.NewReader(`{"amount":"50.00","category":"food","note":"x"}`),
+	)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("wrong response code: %v, want 400", rec.Code)
+	}
+}
+
 func requestStats(t *testing.T, path string) statsResponse {
 	t.Helper()
 
