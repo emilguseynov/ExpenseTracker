@@ -1,12 +1,26 @@
 package expense
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
+	"expense-tracker/internal/database"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+func TestMain(m *testing.M) {
+	if url := os.Getenv("TEST_DATABASE_URL"); url != "" {
+		if err := database.Prepare(context.Background(), url); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
+}
 
 func TestListAndGetByID(t *testing.T) {
 	repo := newTestRepository(t)
@@ -38,10 +52,10 @@ func TestListAndGetByID(t *testing.T) {
 		cents    int64
 		category string
 	}{
-		{1, 5000, "food"},
-		{2, 2000, "transport"},
-		{3, 10000, "electronics"},
 		{4, 3000, "food"},
+		{3, 10000, "electronics"},
+		{2, 2000, "transport"},
+		{1, 5000, "food"},
 	}
 	for i, row := range want {
 		if got[i].ID != row.id || got[i].AmountCents != row.cents || got[i].Category != row.category {

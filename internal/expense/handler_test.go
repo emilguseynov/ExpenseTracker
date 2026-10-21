@@ -105,7 +105,7 @@ func TestHandlerFormatCents(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 
-	want := []string{"0.05", "100.00"}
+	want := []string{"100.00", "0.05"}
 
 	for i, row := range want {
 		if got[i].Amount != row {

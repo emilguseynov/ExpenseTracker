@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Expense Tracker</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="top">
+    <p class="kicker">Personal ledger</p>
+    <h1>Expenses</h1>
+  </header>
+
+  <main>
+    <p id="notice" class="notice" hidden></p>
+
+    <section class="panel">
+      <h2>Add expense</h2>
+      <form id="create-form">
+        <label>Amount
+          <input name="amount" inputmode="decimal" placeholder="50.00" required autocomplete="off">
+        </label>
+        <label>Category
+          <input name="category" placeholder="food" required autocomplete="off">
+        </label>
+        <label>Description
+          <input name="description" placeholder="optional" autocomplete="off">
+        </label>
+        <button type="submit">Add</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Filter</h2>
+      <form id="filter-form">
+        <label>Category
+          <input name="category" placeholder="food" autocomplete="off">
+        </label>
+        <label>From
+          <input name="from" type="date">
+        </label>
+        <label>To
+          <input name="to" type="date">
+        </label>
+        <button type="submit">Apply</button>
+      </form>
+    </section>
+
+    <section class="panel stats" id="stats">
+      <h2>Statistics</h2>
+      <p class="total">Total <strong id="total">0.00</strong></p>
+      <ul id="by-category"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>List</h2>
+      <ul id="expenses" class="rows"></ul>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

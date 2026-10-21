@@ -27,7 +27,7 @@ func (r *Repository) List(ctx context.Context, filter Filter) ([]Expense, error)
 	`
 	filterQuery, args := filterQueryBuilder(filter)
 	query += filterQuery
-	query += " ORDER BY id"
+	query += " ORDER BY id DESC"
 
 	rows, err := r.Pool.Query(ctx, query, args...)
 	if err != nil {

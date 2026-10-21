@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,8 +13,14 @@ import (
 
 func main() {
 	ctx := context.Background()
+	databaseURL := os.Getenv("DATABASE_URL")
 
-	pool, err := database.NewPool(ctx, os.Getenv("DATABASE_URL"))
+	if err := database.Prepare(ctx, databaseURL); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+
+	pool, err := database.NewPool(ctx, databaseURL)
 	if err != nil {
 		slog.Error("database is not ready", "err", err)
 		os.Exit(1)
@@ -28,6 +35,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	handler.Register(mux)
+	mux.Handle("GET /", http.FileServer(http.Dir("web")))
 
 	addr := os.Getenv("HTTP_ADDR")
 	if addr == "" {
