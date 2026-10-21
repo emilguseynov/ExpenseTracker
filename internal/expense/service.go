@@ -24,41 +24,28 @@ func (s *Service) List(
 	from string,
 	to string,
 ) ([]Expense, error) {
-	filter := Filter{}
-
-	if strings.TrimSpace(category) != "" {
-		normalized, err := normalizeCategory(category)
-		if err != nil {
-			return nil, err
-		}
-		filter.Category = normalized
+	filter, err := createFilter(ctx, category, from, to)
+	if err != nil {
+		return nil, err
 	}
-
-	if from != "" {
-		fromDate, err := time.Parse("2006-01-02", from)
-		if err != nil {
-			return nil, ErrInvalidDateRange
-		}
-		filter.From = fromDate
-	}
-
-	if to != "" {
-		toDate, err := time.Parse("2006-01-02", to)
-		if err != nil {
-			return nil, ErrInvalidDateRange
-		}
-		filter.End = toDate.AddDate(0, 0, 1)
-	}
-
-	if !filter.From.IsZero() && !filter.End.IsZero() && !filter.From.Before(filter.End) {
-		return nil, ErrInvalidDateRange
-	}
-
 	return s.repo.List(ctx, filter)
 }
 
 func (s *Service) GetByID(ctx context.Context, id int64) (Expense, error) {
 	return s.repo.GetByID(ctx, id)
+}
+
+func (s *Service) Stats(
+	ctx context.Context,
+	category string,
+	from string,
+	to string,
+) (Stats, error) {
+	filter, err := createFilter(ctx, category, from, to)
+	if err != nil {
+		return Stats{}, err
+	}
+	return s.repo.Stats(ctx, filter)
 }
 
 func (s *Service) Create(
@@ -99,4 +86,43 @@ func normalizeCategory(category string) (string, error) {
 		return "", ErrInvalidCategory
 	}
 	return category, nil
+}
+
+func createFilter(
+	ctx context.Context,
+	category string,
+	from string,
+	to string,
+) (Filter, error) {
+	filter := Filter{}
+
+	if strings.TrimSpace(category) != "" {
+		normalized, err := normalizeCategory(category)
+		if err != nil {
+			return Filter{}, err
+		}
+		filter.Category = normalized
+	}
+
+	if from != "" {
+		fromDate, err := time.Parse("2006-01-02", from)
+		if err != nil {
+			return Filter{}, ErrInvalidDateRange
+		}
+		filter.From = fromDate
+	}
+
+	if to != "" {
+		toDate, err := time.Parse("2006-01-02", to)
+		if err != nil {
+			return Filter{}, ErrInvalidDateRange
+		}
+		filter.End = toDate.AddDate(0, 0, 1)
+	}
+
+	if !filter.From.IsZero() && !filter.End.IsZero() && !filter.From.Before(filter.End) {
+		return Filter{}, ErrInvalidDateRange
+	}
+
+	return filter, nil
 }

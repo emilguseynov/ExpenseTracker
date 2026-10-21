@@ -363,3 +363,156 @@ func TestListWithInvalidDateFilter(t *testing.T) {
 		t.Fatalf("wrong status code: %v, want 400 BadRequest", rec.Code)
 	}
 }
+
+func TestStatsNoParameters(t *testing.T) {
+	ts := newTestSystem(t)
+
+	if _, err := ts.Repo.Pool.Exec(t.Context(), standardInsertQuery); err != nil {
+		t.Fatalf("failed to insert: %v", err)
+	}
+
+	rec := ts.request(
+		http.MethodGet,
+		"/stats",
+	)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status not ok: %v", rec.Code)
+	}
+
+	var response statsResponse
+
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed parsing json: %v", err)
+	}
+
+	want := map[string]string{
+		"electronics": "100.00",
+		"food":        "100.00",
+		"transport":   "20.00",
+	}
+
+	if response.Total != "220.00" {
+		t.Fatalf("wrong total: %v, want 220.00", response.Total)
+	}
+	// if response.ByCategory["electronics"] != want[]
+
+	for key, value := range want {
+		if value != response.ByCategory[key] {
+			t.Fatalf(
+				"wrong sum for %s category: %v, want %v",
+				key, value, want[key],
+			)
+		}
+	}
+
+	if len(response.ByCategory) != 3 {
+		t.Fatalf("wrong amount of categories: %v, want 3", len(response.ByCategory))
+	}
+}
+
+func TestStatsSeptember(t *testing.T) {
+	response := requestStats(t, "/stats?from=2026-09-01&to=2026-09-30")
+
+	if response.Total != "200.00" {
+		t.Fatalf("total = %s, want 200.00", response.Total)
+	}
+
+	want := map[string]string{
+		"electronics": "100.00",
+		"food":        "80.00",
+		"transport":   "20.00",
+	}
+	assertStatsCategories(t, response.ByCategory, want)
+}
+
+func TestStatsFood(t *testing.T) {
+	want := map[string]string{
+		"food": "100.00",
+	}
+
+	for _, path := range []string{
+		"/stats?category=food",
+		"/stats?category=Food",
+	} {
+		response := requestStats(t, path)
+		if response.Total != "100.00" {
+			t.Fatalf("%s total = %s, want 100.00", path, response.Total)
+		}
+		assertStatsCategories(t, response.ByCategory, want)
+	}
+}
+
+func TestStatsFoodSeptember(t *testing.T) {
+	response := requestStats(t, "/stats?category=food&from=2026-09-01&to=2026-09-30")
+
+	if response.Total != "80.00" {
+		t.Fatalf("total = %s, want 80.00", response.Total)
+	}
+
+	assertStatsCategories(t, response.ByCategory, map[string]string{
+		"food": "80.00",
+	})
+}
+
+func TestStatsMissingCategory(t *testing.T) {
+	response := requestStats(t, "/stats?category=rent")
+
+	if response.Total != "0.00" {
+		t.Fatalf("total = %s, want 0.00", response.Total)
+	}
+	if len(response.ByCategory) != 0 {
+		t.Fatalf("by_category = %v, want empty", response.ByCategory)
+	}
+}
+
+func TestStatsInvalidDateFilter(t *testing.T) {
+	ts := newTestSystem(t)
+
+	if _, err := ts.Repo.Pool.Exec(t.Context(), standardInsertQuery); err != nil {
+		t.Fatalf("failed to insert: %v", err)
+	}
+
+	for _, path := range []string{
+		"/stats?from=2026-13-01",
+		"/stats?from=2026-10-01&to=2026-09-01",
+	} {
+		rec := ts.request(http.MethodGet, path)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, want 400", path, rec.Code)
+		}
+	}
+}
+
+func requestStats(t *testing.T, path string) statsResponse {
+	t.Helper()
+
+	ts := newTestSystem(t)
+	if _, err := ts.Repo.Pool.Exec(t.Context(), standardInsertQuery); err != nil {
+		t.Fatalf("failed to insert: %v", err)
+	}
+
+	rec := ts.request(http.MethodGet, path)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s status = %d, want 200", path, rec.Code)
+	}
+
+	var response statsResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed parsing json: %v", err)
+	}
+	return response
+}
+
+func assertStatsCategories(t *testing.T, got, want map[string]string) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("by_category = %v, want %v", got, want)
+	}
+	for key, value := range want {
+		if got[key] != value {
+			t.Fatalf("by_category[%s] = %s, want %s", key, got[key], value)
+		}
+	}
+}

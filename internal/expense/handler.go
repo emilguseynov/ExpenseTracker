@@ -32,6 +32,24 @@ type createExpenseRequest struct {
 	Description string `json:"description"`
 }
 
+type statsResponse struct {
+	Total      string            `json:"total"`
+	ByCategory map[string]string `json:"by_category"`
+}
+
+func newStatsResponse(stats Stats) statsResponse {
+	response := statsResponse{
+		Total:      FormatCents(stats.TotalCents),
+		ByCategory: make(map[string]string),
+	}
+
+	for cat, sum := range stats.ByCategory {
+		response.ByCategory[cat] = FormatCents(sum)
+	}
+
+	return response
+}
+
 type Handler struct {
 	service *Service
 }
@@ -45,6 +63,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /expenses/{id}", h.get)
 	mux.HandleFunc("POST /expenses", h.post)
 	mux.HandleFunc("DELETE /expenses/{id}", h.delete)
+	mux.HandleFunc("GET /stats", h.stats)
 }
 
 // GET
@@ -61,11 +80,15 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		from,
 		to,
 	)
-	if errors.Is(err, ErrInvalidDateRange) {
+	switch {
+	case errors.Is(err, ErrInvalidDateRange):
 		http.Error(w, "invalid period", http.StatusBadRequest)
+	case errors.Is(err, ErrInvalidCategory):
+		http.Error(w, "invalid category", http.StatusBadRequest)
+	case err != nil:
+		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
@@ -95,6 +118,34 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, newExpenseResponse(expense))
+}
+
+func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	category := query.Get("category")
+	from := query.Get("from")
+	to := query.Get("to")
+
+	stats, err := h.service.Stats(
+		r.Context(),
+		category,
+		from,
+		to,
+	)
+
+	switch {
+	case errors.Is(err, ErrInvalidDateRange):
+		http.Error(w, "invalid period", http.StatusBadRequest)
+	case errors.Is(err, ErrInvalidCategory):
+		http.Error(w, "invalid category", http.StatusBadRequest)
+	case err != nil:
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+	if err != nil {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, newStatsResponse(stats))
 }
 
 // POST

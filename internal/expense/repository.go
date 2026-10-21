@@ -21,40 +21,12 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 func (r *Repository) List(ctx context.Context, filter Filter) ([]Expense, error) {
-	conditions := make([]string, 0, 3)
-	args := make([]any, 0, 3)
-
-	if filter.Category != "" {
-		args = append(args, filter.Category)
-		conditions = append(
-			conditions,
-			fmt.Sprintf("category = $%d", len(args)),
-		)
-	}
-
-	if !filter.From.IsZero() {
-		args = append(args, filter.From)
-		conditions = append(
-			conditions,
-			fmt.Sprintf("created_at >= $%d", len(args)),
-		)
-	}
-
-	if !filter.End.IsZero() {
-		args = append(args, filter.End)
-		conditions = append(
-			conditions,
-			fmt.Sprintf("created_at < $%d", len(args)),
-		)
-	}
-
 	query := `
 		SELECT id, amount_cents, category, description, created_at
 		FROM expenses
 	`
-	if len(conditions) > 0 {
-		query += " WHERE " + strings.Join(conditions, " AND ")
-	}
+	filterQuery, args := filterQueryBuilder(filter)
+	query += filterQuery
 	query += " ORDER BY id"
 
 	rows, err := r.Pool.Query(ctx, query, args...)
@@ -127,6 +99,46 @@ func (r *Repository) GetByID(ctx context.Context, id int64) (Expense, error) {
 	return expense, nil
 }
 
+func (r *Repository) Stats(ctx context.Context, filter Filter) (Stats, error) {
+	query := `
+		SELECT category, SUM(amount_cents)
+		FROM expenses
+	`
+	filterQuery, args := filterQueryBuilder(filter)
+	query += filterQuery
+	query += " GROUP BY category"
+
+	rows, err := r.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return Stats{}, err
+	}
+	defer rows.Close()
+
+	stats := Stats{
+		ByCategory: make(map[string]int64),
+	}
+
+	for rows.Next() {
+		var category string
+		var amountCents int64
+
+		if err := rows.Scan(&category, &amountCents); err != nil {
+			return Stats{}, err
+		}
+
+		stats.ByCategory[category] = amountCents
+	}
+	if err = rows.Err(); err != nil {
+		return Stats{}, err
+	}
+
+	for _, sum := range stats.ByCategory {
+		stats.TotalCents += sum
+	}
+
+	return stats, nil
+}
+
 func (r *Repository) Create(
 	ctx context.Context,
 	amountCents int64,
@@ -181,4 +193,38 @@ func (r *Repository) Delete(
 	}
 
 	return nil
+}
+
+func filterQueryBuilder(filter Filter) (query string, args []any) {
+	conditions := make([]string, 0, 3)
+
+	if filter.Category != "" {
+		args = append(args, filter.Category)
+		conditions = append(
+			conditions,
+			fmt.Sprintf("category = $%d", len(args)),
+		)
+	}
+
+	if !filter.From.IsZero() {
+		args = append(args, filter.From)
+		conditions = append(
+			conditions,
+			fmt.Sprintf("created_at >= $%d", len(args)),
+		)
+	}
+
+	if !filter.End.IsZero() {
+		args = append(args, filter.End)
+		conditions = append(
+			conditions,
+			fmt.Sprintf("created_at < $%d", len(args)),
+		)
+	}
+
+	if len(conditions) > 0 {
+		return " WHERE " + strings.Join(conditions, " AND "), args
+	}
+
+	return "", []any{}
 }

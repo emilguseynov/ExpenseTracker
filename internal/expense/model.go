@@ -22,6 +22,11 @@ type Filter struct {
 	End      time.Time
 }
 
+type Stats struct {
+	TotalCents int64
+	ByCategory map[string]int64
+}
+
 func FormatCents(cents int64) string {
 	negative := cents < 0
 	dollars := cents / 100
